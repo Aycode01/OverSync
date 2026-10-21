@@ -104,3 +104,26 @@ comments.
 
 Report security-sensitive issues privately using [`docs/SECURITY.md`](docs/SECURITY.md).
 Do not open public issues or PRs that reveal exploitable details.
+
+## Editor configuration policy
+
+To prevent supply-chain attacks via automatic code execution, the repository
+enforces strict rules for tracked VS Code configuration files:
+
+- **Only `.vscode/extensions.json` is tracked** — it declares recommended
+  extensions but cannot execute code.
+- **`.vscode/settings.json`, `.vscode/tasks.json`, and `.vscode/launch.json` are
+  gitignored** — these files can execute arbitrary commands (tasks, debug
+  configurations, terminal profiles) and must not be committed.
+- **Automatic tasks are prohibited** — any tracked `tasks.json` containing
+  `"runOn": "folderOpen"` will cause CI to fail. The check reports the file
+  path only and never executes task content.
+
+Run the validation locally before committing:
+
+```bash
+pnpm check:vscode-tasks
+```
+
+This check runs in CI on every PR. Do not add workspace tasks that circumvent
+this policy.
