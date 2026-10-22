@@ -11,6 +11,9 @@ describe("Soroban CI diagnostics", () => {
     const workflow = readFileSync(resolve(repoRoot, ".github/workflows/ci.yml"), "utf8");
     assert.equal(/^\s*run:\s*cargo tree -i ed25519-dalek@3\.0\.0/m.test(workflow), false);
     assert.equal(/^\s*- name: Who needs ed25519-dalek 3\.0\.0/m.test(workflow), false);
-    assert.match(workflow, /cargo update -p ed25519-dalek@3\.0\.0 --precise 2\.2\.0/);
+    // The ed25519-dalek pin now lives in the committed soroban/Cargo.lock, and CI
+    // fails if the lockfile is stale instead of re-resolving it at run time
+    // (see cargo-locked.test.mjs for the rule that no workflow runs `cargo update`).
+    assert.match(workflow, /^\s*run:\s*cargo metadata --locked\b/m);
   });
 });
