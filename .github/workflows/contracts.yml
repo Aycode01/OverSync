@@ -53,11 +53,8 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      # Slither auto-detects the Foundry project (contracts/foundry.toml) and
-      # shells out to `forge config` / `forge build`, so forge must be on PATH.
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-
+      # Slither shells out to `forge config` / `forge build`, so this single
+      # setup step must leave forge on PATH. Version is checked before analysis.
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -82,6 +79,9 @@ jobs:
 
       - name: Install slither
         run: pip install slither-analyzer==0.10.4
+
+      - name: Verify Foundry
+        run: forge --version
 
       - name: Run slither on v2 contracts
         working-directory: contracts
