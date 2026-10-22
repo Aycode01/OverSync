@@ -35,7 +35,7 @@ jobs:
           cache: pnpm
 
       - name: Install workspace (for OZ remapping)
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Run Foundry fuzz + invariant tests
         working-directory: contracts
@@ -70,7 +70,7 @@ jobs:
           cache: pnpm
 
       - name: Install workspace
-        run: pnpm install --frozen-lockfile=false
+        run: pnpm install --frozen-lockfile
 
       - name: Compile contracts
         run: pnpm --filter @oversync/contracts compile
