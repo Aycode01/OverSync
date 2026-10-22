@@ -159,10 +159,9 @@ jobs:
       # first.
       - name: Pin ed25519-dalek to the 2.x line
         run: |
-          cargo generate-lockfile
           cargo update -p ed25519-dalek@3.0.0 --precise 2.2.0
           cargo update -p darling --precise 0.20.11
-          cargo update -p serde_with_macros --precise 3.24.0
+          cargo generate-lockfile
 
       - name: Run unit tests
         run: cargo test --release
