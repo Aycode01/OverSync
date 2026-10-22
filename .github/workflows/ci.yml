@@ -104,6 +104,7 @@ jobs:
         with:
           name: ci-evidence-summary-typescript
           path: evidence-summary.md
+          retention-days: 14
 
   soroban:
     name: Soroban contracts
@@ -186,3 +187,4 @@ jobs:
         with:
           name: ci-evidence-summary-soroban
           path: evidence-summary.md
+          retention-days: 14
