@@ -13,17 +13,11 @@ contract HTLCBridgeLegacyLockTest is Test {
     }
 
     function _lock() internal returns (uint256) {
-        return bridge.createOrder{value: 0.01 ether}(
-            address(0),
-            1,
+        return bridge.newLock(
             bytes32(uint256(1)),
-            block.timestamp + 2 hours,
-            0,
             address(this),
-            address(this),
-            1,
-            bytes32(0),
-            false
+            1 ether,
+            block.timestamp + 2 hours
         );
     }
 
