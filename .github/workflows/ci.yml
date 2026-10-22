@@ -154,10 +154,9 @@ jobs:
         run: |
           cargo binstall -y stellar-cli --version 22.8.1
           stellar --version
-      - name: Who needs ed25519-dalek 3.0.0
-        run: cargo tree -i ed25519-dalek@3.0.0
-        continue-on-error: true
 
+      # The temporary `cargo tree -i ed25519-dalek@3.0.0` diagnostic was removed.
+      # It was non-blocking and is not a required check. The pin below is the check CI keeps.
       - name: Pin ed25519-dalek to 2.x
         run: cargo update -p ed25519-dalek@3.0.0 --precise 2.2.0
 
