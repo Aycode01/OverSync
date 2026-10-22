@@ -30,6 +30,9 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Check relayer Docker build context
+        run: node --test relayer/test/dockerignore.test.mjs
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
