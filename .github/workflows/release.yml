@@ -18,6 +18,8 @@ jobs:
   resolver-docker:
     name: Build + push resolver Docker image
     runs-on: ubuntu-latest
+    # Multi-arch image builds finish well under this. A hung buildx step cannot hold the runner indefinitely.
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
