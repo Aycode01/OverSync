@@ -130,14 +130,6 @@ jobs:
           toolchain: 1.86.0
           targets: wasm32-unknown-unknown,wasm32v1-none
 
-      # Install the released binary instead of `cargo install`: stellar-cli
-      # 22.8.1 depends on ethnum 1.5.0, which no longer compiles under current
-      # stable Rust (E0512 transmute size check).
-      - name: Install Stellar CLI
-        run: |
-          cargo install --locked stellar-cli --version 22.8.1
-          stellar --version
-
       - name: Cache cargo
         uses: actions/cache@v4
         with:
@@ -150,6 +142,9 @@ jobs:
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@main
 
+      # One pinned install. stellar-cli 22.8.1 depends on ethnum 1.5.0, which no
+      # longer compiles under current stable Rust, so this uses the released
+      # binary via cargo-binstall rather than a second `cargo install`.
       - name: Install Stellar CLI
         run: |
           cargo binstall -y stellar-cli --version 22.8.1
