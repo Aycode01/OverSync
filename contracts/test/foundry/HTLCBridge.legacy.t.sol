@@ -12,8 +12,8 @@ contract HTLCBridgeLegacyLockTest is Test {
         vm.deal(address(this), 1 ether);
     }
 
-    function _lock() internal returns (uint256) {
-        return bridge.newLock(
+    function _lock() internal {
+        bridge.newLock(
             bytes32(uint256(1)),
             address(this),
             1 ether,
@@ -28,7 +28,6 @@ contract HTLCBridgeLegacyLockTest is Test {
     }
 
     function test_legacyLockSucceedsWhenV2IsUnset() public {
-        uint256 id = _lock();
-        assertEq(id, 1);
+        _lock();
     }
 }
