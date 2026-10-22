@@ -8,7 +8,7 @@ contract HTLCBridgeLegacyLockTest is Test {
     HTLCBridge bridge;
 
     function setUp() public {
-        bridge = new HTLCBridge();
+        bridge = new HTLCBridge(address(0));
         vm.deal(address(this), 1 ether);
     }
 
