@@ -16,6 +16,8 @@ authors = ["OverSync contributors"]
 [workspace.dependencies]
 soroban-sdk = "22.0.8"
 ed25519-dalek = "=2.2.0"
+darling = "0.20.11"
+serde_with_macros = "3.24.0"
 
 [profile.release]
 opt-level = "z"
