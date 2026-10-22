@@ -78,7 +78,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install slither
-        run: pip install slither-analyzer==0.10.4
+        run: pip install --require-hashes -r .github/pip/slither-requirements.txt
 
       - name: Verify Foundry
         run: forge --version
