@@ -36,6 +36,9 @@ jobs:
       - name: Test repository scripts
         run: pnpm test:scripts
 
+      - name: Check tracked VS Code tasks
+        run: pnpm check:vscode-tasks
+
       - name: Validate deployment JSON
         run: pnpm validate:deployments
 

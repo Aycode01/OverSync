@@ -116,8 +116,10 @@ enforces strict rules for tracked VS Code configuration files:
   gitignored** — these files can execute arbitrary commands (tasks, debug
   configurations, terminal profiles) and must not be committed.
 - **Automatic tasks are prohibited** — any tracked `tasks.json` containing
-  `"runOn": "folderOpen"` will cause CI to fail. The check reports the file
-  path only and never executes task content.
+  `"runOn": "folderOpen"` will cause CI to fail. The check examines Git-tracked
+  task files only, supports VS Code JSONC, and fails closed if a tracked file
+  cannot be read or parsed. It reports only the offending path and never
+  executes task content.
 
 Run the validation locally before committing:
 
@@ -125,5 +127,5 @@ Run the validation locally before committing:
 pnpm check:vscode-tasks
 ```
 
-This check runs in CI on every PR. Do not add workspace tasks that circumvent
-this policy.
+This check runs in CI on every PR through the `Check tracked VS Code tasks`
+step. Do not add workspace tasks that circumvent this policy.
