@@ -47,6 +47,7 @@ Run the checks that match your change before opening a PR:
 
 ```bash
 pnpm --filter @oversync/sdk build
+pnpm check:env-docs
 pnpm --filter @oversync/sdk exec tsc --noEmit
 pnpm --filter @oversync/coordinator exec tsc --noEmit
 pnpm --filter @oversync/resolver exec tsc --noEmit
@@ -62,11 +63,20 @@ For Soroban changes:
 ```bash
 cd soroban
 stellar contract build
-cargo test --release
+cargo test --release --locked
 ```
+
+`soroban/Cargo.lock` is committed and CI runs Cargo with `--locked`. If you
+change a Soroban dependency, run `cargo update` locally and commit the new
+lockfile (see `soroban/README.md`).
 
 For Solidity contract changes, the contracts workflow also runs Slither on
 `contracts/contracts/v2`.
+
+Slither is installed with pinned, hash-verified dependencies from
+`.github/pip/slither-requirements.txt` (regenerate with `pip-compile
+--generate-hashes` under Python 3.11 after bumping the version in
+`.github/pip/slither.in`).
 
 ## Pull request expectations
 
