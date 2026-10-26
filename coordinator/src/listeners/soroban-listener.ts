@@ -3,19 +3,15 @@ import type { Logger } from "pino";
 import type { CoordinatorConfig } from "../config.js";
 import type { OrderService } from "../services/order-service.js";
 import { listenerLastBlock } from "../metrics.js";
-import { OrderEventApplier } from "./order-events.js";
-import { decodeSorobanOrderEvent } from "./soroban-events.js";
+import type { ChainEventProcessor } from "../services/chain-events.js";
 
 /**
- * Polls the Soroban RPC for HTLC contract events, decodes the `created` /
- * `claimed` / `refunded` topics published by `oversync-htlc` (see
- * `soroban-events.ts`) and feeds them into the same order state machine the
- * Ethereum listener and the HTTP API use.
+ * Polls the Soroban RPC for HTLC contract events and feeds them into
+ * the OrderService.
  */
 export class SorobanListener {
   private readonly server: rpc.Server;
   private readonly log: Logger;
-  private readonly applier: OrderEventApplier;
   private cursor: string | undefined;
   private resumeLedger: number | undefined;
   private lastLedger = 0;
@@ -23,11 +19,12 @@ export class SorobanListener {
 
   constructor(
     private readonly cfg: CoordinatorConfig,
-    orders: OrderService,
-    log: Logger
+    private readonly orders: OrderService,
+    log: Logger,
+    /** When supplied, the ledger/RPC cursor is persisted and restored across restarts. */
+    private readonly events?: ChainEventProcessor
   ) {
     this.log = log.child({ component: "SorobanListener" });
-    this.applier = new OrderEventApplier(orders, this.log, "soroban-listener");
     this.server = new rpc.Server(cfg.soroban.rpcUrl, {
       allowHttp: cfg.soroban.rpcUrl.startsWith("http://")
     });
@@ -73,21 +70,15 @@ export class SorobanListener {
           limit: 100
         });
         for (const ev of events.events) {
-          const decoded = decodeSorobanOrderEvent({
-            topic: ev.topic,
-            value: ev.value,
-            txHash: ev.txHash,
-            ledger: ev.ledger
-          });
-          if (!decoded) {
-            this.log.debug(
-              { ledger: ev.ledger, txHash: ev.txHash, topics: ev.topic?.length ?? 0 },
-              "Soroban event ignored (not a lifecycle event)"
-            );
-            continue;
-          }
-          const outcome = await this.applier.apply(decoded);
-          this.applier.logOutcome(decoded, outcome);
+          this.lastLedger = Math.max(this.lastLedger, ev.ledger);
+          this.log.info(
+            { ledger: ev.ledger, txHash: ev.txHash, topics: ev.topic?.length ?? 0 },
+            "Soroban event"
+          );
+          // Topic parsing is contract-specific; the SDK module in Phase 5
+          // exposes a typed decoder. Until then we log raw events and let
+          // the user/resolver post `/orders/:id/dst-locked` once they
+          // identify the matching public id.
         }
         if (events.cursor) this.cursor = events.cursor;
         this.resumeLedger = undefined;
