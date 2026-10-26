@@ -60,6 +60,7 @@ exchange for a strictly weaker trust assumption:
 The full competitive analysis (CCTP v2, Axelar ITS, Allbridge) lives
 in [`docs/DIFFERENTIATION.md`](docs/DIFFERENTIATION.md).
 
+
 ---
 
 ## Live operational status
