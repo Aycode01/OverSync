@@ -5,6 +5,7 @@ import type { OrderService } from "../services/order-service.js";
 import { listenerLastBlock } from "../metrics.js";
 import { OrderEventApplier } from "./order-events.js";
 import { decodeSorobanOrderEvent } from "./soroban-events.js";
+import type { ChainEventProcessor } from "../services/chain-events.js";
 
 /**
  * Polls the Soroban RPC for HTLC contract events, decodes the `created` /
@@ -16,6 +17,7 @@ export class SorobanListener {
   private readonly server: rpc.Server;
   private readonly log: Logger;
   private readonly applier: OrderEventApplier;
+  private readonly events?: ChainEventProcessor;
   private cursor: string | undefined;
   private resumeLedger: number | undefined;
   private lastLedger = 0;
@@ -24,8 +26,10 @@ export class SorobanListener {
   constructor(
     private readonly cfg: CoordinatorConfig,
     orders: OrderService,
-    log: Logger
+    log: Logger,
+    events?: ChainEventProcessor
   ) {
+    this.events = events;
     this.log = log.child({ component: "SorobanListener" });
     this.applier = new OrderEventApplier(orders, this.log, "soroban-listener");
     this.server = new rpc.Server(cfg.soroban.rpcUrl, {
