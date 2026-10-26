@@ -45,7 +45,7 @@ Historically, cross-chain bridges have caused some of the largest losses
 in DeFi (Ronin $625M, Wormhole $325M, Multichain $231M). The common
 failure pattern is the same: an off-chain validator quorum that signs
 proofs of locks gets compromised, and the wrapped tokens on the
-destination chain get minted without a real lock.
+destination chain get minted without a real lock. 
 
 OverSync gives up the convenience of validator-set bridging in
 exchange for a strictly weaker trust assumption:
