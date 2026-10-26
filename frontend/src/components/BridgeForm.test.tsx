@@ -14,6 +14,8 @@ vi.mock('@stellar/stellar-sdk', () => ({
 
 vi.mock('../config/networks', () => ({
   isTestnet: vi.fn(() => true),
+  STELLAR_MAINNET_PASSPHRASE: 'Public Global Stellar Network ; September 2015',
+  STELLAR_TESTNET_PASSPHRASE: 'Test SDF Network ; September 2015',
   getCurrentNetwork: vi.fn(() => ({
     ethereum: {
       id: 11155111,
@@ -49,7 +51,7 @@ vi.mock('../lib/useBackendStatus', () => ({
   useBackendStatus: (...args: unknown[]) => useBackendStatusMock(...args),
 }));
 
-const nullSigner = vi.fn().mockResolved('');
+const nullSigner = vi.fn().mockResolvedValue('');
 
 const testnetState: NetworkModeState = {
   mode: 'testnet',
@@ -103,7 +105,7 @@ describe('BridgeForm network mismatch guardrails', () => {
     Object.defineProperty(window, 'ethereum', {
       writable: true,
       value: {
-        request: vi.fn().mockResolved('0xaa36a7'),
+        request: vi.fn().mockResolvedValue('0xaa36a7'),
         selectedAddress: '0x1234567890123456789012345678901234567890',
       },
     });
@@ -304,7 +306,7 @@ describe('BridgeForm coordinator health gating', () => {
     Object.defineProperty(window, 'ethereum', {
       writable: true,
       value: {
-        request: vi.fn().mockResolved('0xaa36a7'),
+        request: vi.fn().mockResolvedValue('0xaa36a7'),
         selectedAddress: '0x1234567890123456789012345678901234567890',
       },
     });
@@ -358,7 +360,7 @@ describe('BridgeForm coordinator health gating', () => {
   });
 
   test('wake action does not post an order', () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolved({
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ status: 'ready' }),
     } as Response);
@@ -421,7 +423,7 @@ describe('BridgeForm coordinator health gating', () => {
   });
 
   test('wake calls health again and not the order route', () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolved({
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ status: 'ready' }),
     } as Response);

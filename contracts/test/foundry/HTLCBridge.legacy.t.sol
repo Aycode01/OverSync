@@ -8,22 +8,16 @@ contract HTLCBridgeLegacyLockTest is Test {
     HTLCBridge bridge;
 
     function setUp() public {
-        bridge = new HTLCBridge();
+        bridge = new HTLCBridge(address(0));
         vm.deal(address(this), 1 ether);
     }
 
-    function _lock() internal returns (uint256) {
-        return bridge.createOrder{value: 0.01 ether}(
-            address(0),
-            1,
+    function _lock() internal {
+        bridge.newLock(
             bytes32(uint256(1)),
-            block.timestamp + 2 hours,
-            0,
             address(this),
-            address(this),
-            1,
-            bytes32(0),
-            false
+            1 ether,
+            block.timestamp + 2 hours
         );
     }
 
@@ -34,7 +28,6 @@ contract HTLCBridgeLegacyLockTest is Test {
     }
 
     function test_legacyLockSucceedsWhenV2IsUnset() public {
-        uint256 id = _lock();
-        assertEq(id, 1);
+        _lock();
     }
 }
