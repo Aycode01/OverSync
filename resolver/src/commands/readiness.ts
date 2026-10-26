@@ -237,20 +237,30 @@ export async function assessReadiness(): Promise<ReadinessResult> {
   });
 
   // ===== Resolver network agreement (EVM + Soroban match NETWORK_MODE) =====
-  const evmRpcUrl = resolveEthereumRpcUrl(network);
-  const sorobanRpcUrl =
-    process.env.SOROBAN_RPC_URL?.trim() ||
-    (network === "mainnet" ? "https://mainnet.sorobanrpc.com" : "https://soroban-testnet.stellar.org");
-  const sorobanNetworkPassphrase = network === "mainnet"
-    ? "Public Global Stellar Network ; September 2015"
-    : "Test SDF Network ; September 2015";
+  let resolverAgreement: { status: "ok" | "warn" | "fail"; detail: string };
+  try {
+    const evmRpcUrl = resolveEthereumRpcUrl(network);
+    const sorobanRpcUrl =
+      process.env.SOROBAN_RPC_URL?.trim() ||
+      (network === "mainnet" ? "https://mainnet.sorobanrpc.com" : "https://soroban-testnet.stellar.org");
+    const sorobanNetworkPassphrase = network === "mainnet"
+      ? "Public Global Stellar Network ; September 2015"
+      : "Test SDF Network ; September 2015";
 
-  const resolverAgreement = await checkResolverNetworkAgreement(
-    network,
-    evmRpcUrl,
-    sorobanRpcUrl,
-    sorobanNetworkPassphrase
-  );
+    resolverAgreement = await checkResolverNetworkAgreement(
+      network,
+      evmRpcUrl,
+      sorobanRpcUrl,
+      sorobanNetworkPassphrase
+    );
+  } catch (err: any) {
+    // URL validation failures are already surfaced by the evm-rpc check;
+    // fail this check closed without leaking embedded credentials.
+    resolverAgreement = {
+      status: "fail",
+      detail: `Network agreement could not be evaluated: ${err?.message ?? String(err)}`
+    };
+  }
   checks.push({
     id: "resolver-network-agreement",
     label: "Resolver EVM and Soroban networks agree with NETWORK_MODE",

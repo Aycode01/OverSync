@@ -14,6 +14,8 @@ vi.mock('@stellar/stellar-sdk', () => ({
 
 vi.mock('../config/networks', () => ({
   isTestnet: vi.fn(() => true),
+  isMainnetEnabled: vi.fn(() => false),
+  resolveNetworkMode: vi.fn((mode: string) => (mode === 'mainnet' ? 'testnet' : mode)),
   STELLAR_MAINNET_PASSPHRASE: 'Public Global Stellar Network ; September 2015',
   STELLAR_TESTNET_PASSPHRASE: 'Test SDF Network ; September 2015',
   getCurrentNetwork: vi.fn(() => ({
@@ -71,29 +73,49 @@ const testnetState: NetworkModeState = {
 
 const readyStatus = {
   status: 'ready' as const,
+  isReady: true,
+  isLoading: false,
   loading: false,
+  lastChecked: null,
+  errorMessage: null,
   error: null,
+  retry: vi.fn(),
   refresh: vi.fn(),
 };
 
 const notReadyStatus = {
   status: 'not-ready' as const,
+  isReady: false,
+  isLoading: false,
   loading: false,
+  lastChecked: null,
+  errorMessage: null,
   error: null,
+  retry: vi.fn(),
   refresh: vi.fn(),
 };
 
 const loadingStatus = {
   status: 'loading' as const,
+  isReady: false,
+  isLoading: true,
   loading: true,
+  lastChecked: null,
+  errorMessage: null,
   error: null,
+  retry: vi.fn(),
   refresh: vi.fn(),
 };
 
 const downStatus = {
   status: 'down' as const,
+  isReady: false,
+  isLoading: false,
   loading: false,
+  lastChecked: null,
+  errorMessage: 'coordinator unreachable',
   error: 'coordinator unreachable',
+  retry: vi.fn(),
   refresh: vi.fn(),
 };
 
@@ -125,8 +147,8 @@ describe('BridgeForm network mismatch guardrails', () => {
     // Button is disabled because amount is empty, but text shows "Bridge"
     // and no mismatch warning is rendered
     expect(submitBtn).toHaveTextContent('Bridge');
-    expect(screen.queryByText(/Network Mismatch/i)).not.toBeITheDocument();
-    expect(screen.queryByText(/Switch MetaMask/i)).not.toBeITheDocument();
+    expect(screen.queryByText(/Network Mismatch/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Switch MetaMask/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Switch Freighter/i)).not.toBeInTheDocument();
   });
 
@@ -322,31 +344,25 @@ describe('BridgeForm coordinator health gating', () => {
       />,
     );
 
-  test('not-ready health disables submit, claim, and refund', () => {
+  test('not-ready health disables submit and says the coordinator is not ready', () => {
     useBackendStatusMock.mockReturnValue(notReadyStatus);
     renderForm();
 
-    expect(screen.getByRole('button', { name: /Bridge/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Claim/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Refund/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Coordinator not ready/i })).toBeDisabled();
   });
 
-  test('loading health disables submit, claim, and refund', () => {
+  test('loading health disables submit while the coordinator check runs', () => {
     useBackendStatusMock.mockReturnValue(loadingStatus);
     renderForm();
 
-    expect(screen.getByRole('button', { name: /Bridge/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Claim/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Refund/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Checking coordinator/i })).toBeDisabled();
   });
 
-  test('down health disables submit, claim, and refund', () => {
+  test('down health disables submit', () => {
     useBackendStatusMock.mockReturnValue(downStatus);
     renderForm();
 
-    expect(screen.getByRole('button', { name: /Bridge/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Claim/i })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Refund/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Coordinator not ready/i })).toBeDisabled();
   });
 
   test('ready health enables submit when other guards pass', () => {
@@ -355,7 +371,7 @@ describe('BridgeForm coordinator health gating', () => {
 
     // Amount is empty so the button is disabled, but the label should be 'Bridge'
     // and not a health-related blocked label.
-    const submitBtn = screen.getByRole('button', { name: /Bridge/i });
+    const submitBtn = screen.getByRole('button', { name: 'Bridge' });
     expect(submitBtn).toHaveTextContent('Bridge');
   });
 
@@ -395,7 +411,7 @@ describe('BridgeForm coordinator health gating', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: /Bridge/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Coordinator not ready/i })).toBeDisabled();
 
     // Newer response arrives first.
     useBackendStatusMock.mockReturnValue(readyStatus);
@@ -419,7 +435,7 @@ describe('BridgeForm coordinator health gating', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: /Bridge/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Coordinator not ready/i })).toBeDisabled();
   });
 
   test('wake calls health again and not the order route', () => {

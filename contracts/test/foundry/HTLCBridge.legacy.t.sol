@@ -13,7 +13,7 @@ contract HTLCBridgeLegacyLockTest is Test {
     }
 
     function _lock() internal {
-        bridge.newLock(
+        bridge.newLock{value: 1 ether}(
             bytes32(uint256(1)),
             address(this),
             1 ether,
@@ -23,7 +23,7 @@ contract HTLCBridgeLegacyLockTest is Test {
 
     function test_legacyLockRevertsWhenV2EscrowIsActive() public {
         bridge.setActiveV2Escrow(address(0xBEEF));
-        vm.expectRevert(bytes("legacy lock refused"));
+        vm.expectRevert(bytes("Legacy lock rejected: v2 escrow active"));
         _lock();
     }
 
