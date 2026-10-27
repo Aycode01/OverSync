@@ -34,3 +34,11 @@ test("release workflow serializes image builds for the same tag", () => {
   assert.equal(group, "group: release-${{ github.ref_name }}");
   assert.equal(cancel, "cancel-in-progress: true");
 });
+
+test("release workflow requires approval via the protected release environment", () => {
+  const source = readFileSync(workflowPath, "utf8");
+  const jobBlock = source.match(/resolver-docker:[\s\S]*?(?=\n  [A-Za-z0-9_-]+:|$)/);
+
+  assert.ok(jobBlock, "resolver-docker job is missing");
+  assert.match(jobBlock[0], /environment:\s*release/);
+});
