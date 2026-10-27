@@ -25,6 +25,10 @@ RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
+# Run as the image's built-in unprivileged `node` user (uid 1000). The final
+# build stage must end non-root — enforced by scripts/lib/dockerfile-users.mjs.
+USER node
+
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
