@@ -5,6 +5,7 @@ import type { CoordinatorConfig } from "../config.js";
 import type { OrderService } from "../services/order-service.js";
 import { listenerLastBlock } from "../metrics.js";
 import { OrderEventApplier, type BridgeOrderEvent } from "./order-events.js";
+import type { ChainEventProcessor, SettlementEvent } from "../services/chain-events.js";
 
 const ORDER_CREATED = parseAbiItem(
   "event OrderCreated(uint256 indexed orderId, address indexed sender, address indexed beneficiary, address token, uint256 amount, uint256 safetyDeposit, bytes32 hashlock, uint64 timelock)"
@@ -20,19 +21,28 @@ export class EthereumListener {
   private readonly client: PublicClient;
   private readonly log: Logger;
   private readonly applier: OrderEventApplier;
+  private readonly orders: OrderService;
+  private readonly events?: ChainEventProcessor;
   private unwatchers: Array<() => void> = [];
 
   constructor(
     private readonly cfg: CoordinatorConfig,
     orders: OrderService,
-    log: Logger
+    log: Logger,
+    events?: ChainEventProcessor
   ) {
+    this.orders = orders;
+    this.events = events;
     this.log = log.child({ component: "EthereumListener" });
     this.applier = new OrderEventApplier(orders, this.log, "ethereum-listener");
     this.client = createPublicClient({
       chain: cfg.ethereum.chainId === 1 ? mainnet : sepolia,
       transport: http(cfg.ethereum.rpcUrl)
     });
+  }
+
+  private get networkId(): string {
+    return `ethereum:${this.cfg.ethereum.chainId}`;
   }
 
   /** Log the block we are following and hand the event to the applier. */
@@ -42,7 +52,7 @@ export class EthereumListener {
     this.applier.logOutcome(event, outcome);
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (!this.cfg.ethereum.htlcEscrow) {
       this.log.warn("ETH_HTLC_ESCROW not configured - Ethereum listener disabled");
       return;
