@@ -13,7 +13,7 @@ is a `sha256` preimage reveal, not a multisig attestation. If anything
 in the bridge fails — coordinator down, resolver malicious, RPC
 rate-limited, frontend offline — the locked funds either settle to
 the beneficiary or refund permissionlessly to the user. There is no
-state in which user funds are stranded under operator control.
+state in which user funds are stranded under operator control. 
 
 > **Status (May 2026).** v2 is the live design and is **deployed on
 > testnet** (Sepolia + Stellar testnet). The public frontend is
@@ -45,7 +45,7 @@ Historically, cross-chain bridges have caused some of the largest losses
 in DeFi (Ronin $625M, Wormhole $325M, Multichain $231M). The common
 failure pattern is the same: an off-chain validator quorum that signs
 proofs of locks gets compromised, and the wrapped tokens on the
-destination chain get minted without a real lock.
+destination chain get minted without a real lock. 
 
 OverSync gives up the convenience of validator-set bridging in
 exchange for a strictly weaker trust assumption:
@@ -59,6 +59,7 @@ exchange for a strictly weaker trust assumption:
 
 The full competitive analysis (CCTP v2, Axelar ITS, Allbridge) lives
 in [`docs/DIFFERENTIATION.md`](docs/DIFFERENTIATION.md).
+
 
 ---
 

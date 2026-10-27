@@ -1,6 +1,9 @@
 name: ci
 # PR comparison marker – no functional impact
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [master, main, v2-rebuild]
@@ -33,11 +36,21 @@ jobs:
       - name: Check relayer Docker build context
         run: node --test relayer/test/dockerignore.test.mjs
 
+      # #376 — both service Dockerfiles must end their final build stage
+      # on a non-root user (no deps needed, runs pre-install).
+      - name: Check Dockerfile runtime users
+        run: node --test scripts/lib/dockerfile-users.test.mjs
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
       - name: Test repository scripts
         run: pnpm test:scripts
+
+      # Guards #384: every evidence/Slither artifact upload must declare a
+      # bounded retention-days, including upload steps added later.
+      - name: Check CI artifact retention
+        run: node scripts/check-artifact-retention.mjs
 
       # Guards #355: each env key must appear exactly once in env.example, so
       # operators cannot edit one copy while deployment reads another.
@@ -94,16 +107,20 @@ jobs:
       - name: Check evidence links
         run: node scripts/check-evidence-links.mjs
 
+      # Keep diagnostics available even when an earlier build or test step fails.
       - name: Generate CI evidence summary
+        if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: node scripts/generate-ci-evidence.mjs
 
       - name: Upload CI evidence summary
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: ci-evidence-summary-typescript
           path: evidence-summary.md
+          retention-days: 14
 
   soroban:
     name: Soroban contracts
@@ -176,13 +193,17 @@ jobs:
       - name: Run unit tests
         run: cargo test --release --locked
 
+      # Keep diagnostics available even when an earlier build or test step fails.
       - name: Generate CI evidence summary (Soroban)
+        if: always()
         env:
           JOB_STATUS: ${{ job.status }}
         run: node ${{ github.workspace }}/scripts/generate-ci-evidence.mjs
 
       - name: Upload CI evidence summary (Soroban)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: ci-evidence-summary-soroban
           path: evidence-summary.md
+          retention-days: 14

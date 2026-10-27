@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import pino from "pino";
-import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -8,6 +7,7 @@ import { openDatabase } from "../src/persistence/db.js";
 import { OrdersRepository } from "../src/persistence/orders-repo.js";
 import { OrderService } from "../src/services/order-service.js";
 import { SecretService } from "../src/services/secret-service.js";
+import { hashOrderPreimage } from "@oversync/sdk/secrets";
 import {
   ChainEventProcessor,
   CursorMismatchError,
@@ -19,7 +19,7 @@ const ETH_NET = "ethereum:11155111";
 const ETH_ADDR = "0x1111111111111111111111111111111111111111";
 const XLM_ADDR = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB422";
 const PREIMAGE = ("0x" + "ab".repeat(32)) as `0x${string}`;
-const HASHLOCK = "0x" + createHash("sha256").update(Buffer.from("ab".repeat(32), "hex")).digest("hex");
+const HASHLOCK = hashOrderPreimage(7n, PREIMAGE);
 
 // Fixture-driven: no RPC connection is opened anywhere in this file.
 async function setup() {

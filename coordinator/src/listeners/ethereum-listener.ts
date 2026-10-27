@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import type { CoordinatorConfig } from "../config.js";
 import type { OrderService } from "../services/order-service.js";
 import { listenerLastBlock } from "../metrics.js";
+import { OrderEventApplier, type BridgeOrderEvent } from "./order-events.js";
 import type { ChainEventProcessor, SettlementEvent } from "../services/chain-events.js";
 
 const ORDER_CREATED = parseAbiItem(
@@ -19,15 +20,19 @@ const ORDER_REFUNDED = parseAbiItem(
 export class EthereumListener {
   private readonly client: PublicClient;
   private readonly log: Logger;
+  private readonly applier: OrderEventApplier;
+  private readonly orders: OrderService;
+  private readonly events?: ChainEventProcessor;
   private unwatchers: Array<() => void> = [];
 
   constructor(
     private readonly cfg: CoordinatorConfig,
-    private readonly orders: OrderService,
+    orders: OrderService,
     log: Logger,
-    /** When supplied, claims/refunds are applied exactly once and the block cursor is persisted. */
-    private readonly events?: ChainEventProcessor
+    events?: ChainEventProcessor
   ) {
+    this.orders = orders;
+    this.events = events;
     this.log = log.child({ component: "EthereumListener" });
     this.client = createPublicClient({
       chain: cfg.ethereum.chainId === 1 ? mainnet : sepolia,
@@ -39,13 +44,13 @@ export class EthereumListener {
     return `ethereum:${this.cfg.ethereum.chainId}`;
   }
 
-  /**
-   * Resume from the persisted block cursor: re-read logs from the last
-   * fully processed block (inclusive; the processor skips events it has
-   * already applied) up to the chain head, then live-watch. Throws
-   * CursorMismatchError when the saved cursor belongs to another network.
-   * With no saved cursor the listener starts at the current head.
-   */
+  /** Log the block we are following and hand the event to the applier. */
+  private async handle(blockNumber: number, event: BridgeOrderEvent): Promise<void> {
+    listenerLastBlock.set({ chain: "ethereum" }, blockNumber);
+    const outcome = await this.applier.apply(event);
+    this.applier.logOutcome(event, outcome);
+  }
+
   async start(): Promise<void> {
     if (!this.cfg.ethereum.htlcEscrow) {
       this.log.warn("ETH_HTLC_ESCROW not configured - Ethereum listener disabled");

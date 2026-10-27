@@ -13,10 +13,10 @@ contract HTLCBridgeLegacyLockTest is Test {
     }
 
     function _lock() internal {
-        bridge.newLock{value: 1 ether}(
+        bridge.newLock{value: 0.01 ether}(
             bytes32(uint256(1)),
             address(this),
-            1 ether,
+            0.01 ether,
             block.timestamp + 2 hours
         );
     }
@@ -29,5 +29,6 @@ contract HTLCBridgeLegacyLockTest is Test {
 
     function test_legacyLockSucceedsWhenV2IsUnset() public {
         _lock();
+        assertTrue(bridge.locked(bytes32(uint256(1))));
     }
 }

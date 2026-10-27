@@ -68,14 +68,7 @@ vi.mock("../src/listeners/soroban.js", () => ({
 }));
 vi.mock("../src/network-agreement.js", () => ({
   checkCoordinatorNetwork: vi.fn().mockResolvedValue({ status: "ok" }),
-  checkResolverNetworkAgreement: vi.fn().mockResolvedValue({
-    status: "ok",
-    detail: "networks agree",
-    observed: {
-      evm: { chainId: 11_155_111, rpcUrl: "http://localhost:8545" },
-      soroban: { networkPassphrase: "Test SDF Network ; September 2015", rpcUrl: "http://localhost:8000" }
-    }
-  })
+  checkResolverNetworkAgreement: vi.fn().mockResolvedValue({ status: "ok", detail: "networks agree" })
 }));
 
 import { checkPreflight, buildJsonOutput, checkCommand } from "../src/commands/check.js";

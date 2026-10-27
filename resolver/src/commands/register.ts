@@ -215,7 +215,7 @@ async function validateSorobanRegistry(
   }
 
   let alreadyActive = false;
-  const retval = (sim as rpc.Api.SimulateTransactionSuccessResponse).result?.retval;
+  const retval = rpc.Api.isSimulationSuccess(sim) ? sim.result?.retval : undefined;
   if (retval && retval.switch().name === "scvBool") {
     alreadyActive = retval.b();
   }
@@ -277,17 +277,16 @@ async function registerSoroban(
     throw new Error(`Soroban register transaction failed: ${JSON.stringify(sendResult.errorResult)}`);
   }
 
-  // Poll for confirmation. Widen the type: `sendTransaction` reports the
-  // pending status, while the poll below sets the terminal SUCCESS value.
-  let finalStatus: string = sendResult.status;
+  // Poll for confirmation
   const txHash = sendResult.hash;
+  let confirmed = false;
   log.info({ txHash }, "Soroban: register transaction submitted, polling for confirmation");
 
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const pollResult = await server.getTransaction(txHash);
     if (pollResult.status === "SUCCESS") {
-      finalStatus = "SUCCESS";
+      confirmed = true;
       log.info({ txHash }, "Soroban: resolver registered successfully");
       break;
     }
@@ -297,7 +296,7 @@ async function registerSoroban(
     // NOT_FOUND means still pending — keep polling
   }
 
-  if (finalStatus !== "SUCCESS") {
+  if (!confirmed) {
     throw new Error(`Soroban register transaction did not confirm after 60s (hash: ${txHash})`);
   }
 
@@ -327,7 +326,6 @@ export async function registerCommand(
   const cfg = loadConfig();
   const log = getLogger(cfg.logLevel);
 
-  // Check network agreement before building any transaction.
   const agreement = await checkResolverNetworkAgreement(
     cfg.network,
     cfg.ethereum.rpcUrl,
@@ -336,9 +334,9 @@ export async function registerCommand(
   );
   if (agreement.status === "fail") {
     throw new Error(
-      `Network agreement failed: ${agreement.detail}. ` +
-        `Observed: EVM=${agreement.observed.evm.rpcUrl} (chainId=${agreement.observed.evm.chainId}), ` +
-        `Soroban=${agreement.observed.soroban.rpcUrl} (passphrase=${agreement.observed.soroban.networkPassphrase})`
+      `Network agreement failed: ${agreement.detail}. Observed: EVM=${agreement.observed.evm.rpcUrl} ` +
+      `(chainId=${agreement.observed.evm.chainId}), Soroban=${agreement.observed.soroban.rpcUrl} ` +
+      `(passphrase=${agreement.observed.soroban.networkPassphrase})`
     );
   }
 

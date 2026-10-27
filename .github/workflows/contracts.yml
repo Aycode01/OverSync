@@ -1,5 +1,8 @@
 name: contracts
 
+permissions:
+  contents: read
+
 on:
   push:
     paths:
@@ -94,3 +97,4 @@ jobs:
         with:
           name: slither-report
           path: contracts/slither-results.json
+          retention-days: 14

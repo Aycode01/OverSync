@@ -3,6 +3,8 @@ import type { Logger } from "pino";
 import type { CoordinatorConfig } from "../config.js";
 import type { OrderService } from "../services/order-service.js";
 import { listenerLastBlock } from "../metrics.js";
+import { OrderEventApplier } from "./order-events.js";
+import { decodeSorobanOrderEvent } from "./soroban-events.js";
 import type { ChainEventProcessor } from "../services/chain-events.js";
 
 /**
@@ -12,6 +14,8 @@ import type { ChainEventProcessor } from "../services/chain-events.js";
 export class SorobanListener {
   private readonly server: rpc.Server;
   private readonly log: Logger;
+  private readonly applier: OrderEventApplier;
+  private readonly events?: ChainEventProcessor;
   private cursor: string | undefined;
   private resumeLedger: number | undefined;
   private lastLedger = 0;
@@ -19,11 +23,11 @@ export class SorobanListener {
 
   constructor(
     private readonly cfg: CoordinatorConfig,
-    private readonly orders: OrderService,
+    orders: OrderService,
     log: Logger,
-    /** When supplied, the ledger/RPC cursor is persisted and restored across restarts. */
-    private readonly events?: ChainEventProcessor
+    events?: ChainEventProcessor
   ) {
+    this.events = events;
     this.log = log.child({ component: "SorobanListener" });
     this.server = new rpc.Server(cfg.soroban.rpcUrl, {
       allowHttp: cfg.soroban.rpcUrl.startsWith("http://")
