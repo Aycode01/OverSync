@@ -36,11 +36,6 @@ import {
   type TimelockValidationError
 } from "../utils/timelock-validator.js";
 
-const HEX32 = /^0x[0-9a-fA-F]{64}$/;
-const ZERO_HASHLOCK = "0x" + "0".repeat(64);
-const HEX_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
-const STELLAR_ADDRESS = /^G[A-Z2-7]{55}$/;
-
 /**
  * Minimal interface the coordinator uses to verify that an Ethereum
  * address is currently registered in the on-chain ResolverRegistry.
@@ -51,8 +46,10 @@ export interface ResolverRegistryPort {
   isActive(address: string): Promise<boolean>;
 }
 
-/** Writer label used when a caller does not identify itself. */
-export const ORDER_SERVICE_WRITER = "order-service";
+const HEX32 = /^0x[0-9a-fA-F]{64}$/;
+const ZERO_HASHLOCK = "0x" + "0".repeat(64);
+const HEX_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const STELLAR_ADDRESS = /^G[A-Z2-7]{55}$/;
 
 /** Writer label used when a caller does not identify itself. */
 export const ORDER_SERVICE_WRITER = "order-service";
@@ -104,23 +101,6 @@ export class OrderValidationError extends Error {
     super(message);
     this.name = "OrderValidationError";
     this.code = code;
-  }
-}
-
-/** Stable quote rejection reasons surfaced by the announce route. */
-export type QuoteRejectionReason = "quote_expired" | "quote_mismatch";
-
-/**
- * An `OrderValidationError` raised by the quote gate, carrying the stable
- * reason the HTTP layer maps to `error: "quote_expired"` / `"quote_mismatch"`.
- */
-export class QuoteValidationError extends OrderValidationError {
-  constructor(
-    message: string,
-    public readonly quoteError: QuoteRejectionReason
-  ) {
-    super(message);
-    this.name = "QuoteValidationError";
   }
 }
 
@@ -314,17 +294,6 @@ export class OrderService {
         this.log.debug({ quoteId: input.quoteId }, "quoteId supplied but no QuoteService wired; skipping freshness check");
       } else {
         try {
-          // The order must match the terms the quote was issued for, and its
-          // source amount must equal the base-unit integer the form quoted.
-          this.quoteService.assertMatches(input.quoteId, {
-            srcChain: input.srcChain,
-            srcAsset: input.srcAsset,
-            srcAmount: input.srcAmount,
-            dstChain: input.dstChain,
-            dstAsset: input.dstAsset,
-            dstAmount: input.dstAmount
-          });
-          this.quoteService.assertFresh(input.quoteId, input.srcAmount);
           this.quoteService.bindOrderTerms(input.quoteId, {
             fromAsset: input.srcAsset,
             toAsset: input.dstAsset,
@@ -377,20 +346,6 @@ export class OrderService {
   get(publicId: string): Promise<OrderRow | null> {
     return this.repo.findByPublicId(publicId);
   }
-
-  getTransitions(publicId: string): Promise<OrderTransitionSummary[]> {
-    return this.repo.getTransitions(publicId);
-  }
-
-  /**
-   * Transitions the state machine refused for an order, with their stable
-   * failure code. Queryable so an operator can see that a late listener event
-   * or a repeated client call was refused and why the status did not move.
-   */
-  getRejectedTransitions(publicId: string): Promise<OrderRejectedTransition[]> {
-    return this.repo.getRejectedTransitions(publicId);
-  }
-
   /**
    * Cursor-based history page. `before` is the validated keyset from the
    * previous page; omit it for the first page. `limit` defaults to a full page
@@ -604,6 +559,10 @@ export class OrderService {
     });
   }
 
+  async getSnapshots(): Promise<OrderSnapshot[]> {
+    return this.repo.getCompletedOrderSnapshots();
+  }
+
   /**
    * Persist a refused transition and throw a typed error carrying its stable
    * code. The stored order status is never touched; only the audit trail
@@ -755,128 +714,6 @@ export class OrderService {
     }
 
     return order;
-  }
-
-  async getSnapshots(): Promise<OrderSnapshot[]> {
-    return this.repo.getCompletedOrderSnapshots();
-  }
-
-  /**
-   * Persist a refused transition and throw a typed error carrying its stable
-   * code. The stored order status is never touched; only the audit trail
-   * (`order_events`) grows.
-   */
-  private async rejectTransition(info: TransitionRejectionInfo): Promise<never> {
-    await this.persistRejection(info);
-    throw new OrderTransitionRejectedError(info);
-  }
-
-  /**
-   * Record a refused transition in the audit trail: one `transition_rejected`
-   * event, one metric sample, one log line. The order row is left alone.
-   *
-   * `noisy` is false for an identical redelivery, which is normal for chain
-   * listeners and only worth a debug line (the metric still counts it).
-   */
-  private async persistRejection(
-    info: TransitionRejectionInfo,
-    { noisy = true }: { noisy?: boolean } = {}
-  ): Promise<void> {
-    await this.repo.recordRejectedTransition({
-      publicId: info.publicId,
-      from: info.from,
-      to: info.to,
-      action: info.action,
-      code: info.code,
-      reason: info.reason,
-      txHash: info.txHash ?? null,
-      writer: info.writer
-    });
-    illegalOrderTransitions.inc({ code: info.code });
-    const fields = {
-      publicId: info.publicId,
-      from: info.from,
-      to: info.to,
-      action: info.action,
-      code: info.code,
-      writer: info.writer,
-      txHash: info.txHash ?? null
-    };
-    if (noisy) {
-      this.log.warn(fields, "refused illegal order transition");
-    } else {
-      this.log.debug(fields, "step already applied, refusing the repeat");
-    }
-  }
-
-  /**
-   * Apply one legal edge, refusing (and recording) anything else.
-   *
-   * Order of operations per event:
-   *   1. load the order,
-   *   2. if it is already in the target status, decide redelivery vs conflict,
-   *   3. ask the state machine whether the edge is legal,
-   *   4. only then write.
-   */
-  private async advance(request: AdvanceRequest): Promise<void> {
-    const order = await this.repo.findByPublicId(request.publicId);
-    if (!order) throw new OrderValidationError(`unknown order ${request.publicId}`);
-
-    const to = ACTION_TARGET_STATUS[request.action];
-    const writer = request.writer ?? ORDER_SERVICE_WRITER;
-
-    if (order.status === to) {
-      const redelivery = request.isSameStep ? request.isSameStep(order) : true;
-      const code = redelivery
-        ? ORDER_FAILURE_CODES.REPEATED_STEP
-        : ORDER_FAILURE_CODES.CONFLICTING_STEP;
-      const info: TransitionRejectionInfo = {
-        publicId: request.publicId,
-        from: order.status,
-        to,
-        action: request.action,
-        code,
-        reason: describeTransitionFailure(code, order.status, to),
-        txHash: request.txHash ?? null,
-        writer
-      };
-      if (redelivery) {
-        // At-least-once delivery is normal for chain events: the step is
-        // already applied, so record the repeat but neither move the order
-        // nor fail the caller.
-        await this.persistRejection(info, { noisy: false });
-        return;
-      }
-      return this.rejectTransition(info);
-    }
-
-    const assessment = evaluateTransition(order.status, to, request.action);
-    if (!assessment.allowed) {
-      return this.rejectTransition({
-        publicId: request.publicId,
-        from: order.status,
-        to,
-        action: request.action,
-        code: assessment.code ?? ORDER_FAILURE_CODES.NOT_ALLOWED,
-        reason: assessment.reason ?? describeTransitionFailure(ORDER_FAILURE_CODES.NOT_ALLOWED, order.status, to),
-        txHash: request.txHash ?? null,
-        writer
-      });
-    }
-
-    await request.apply(order, to);
-    this.log.info(
-      {
-        publicId: order.publicId,
-        from: order.status,
-        to,
-        action: request.action,
-        writer,
-        ...request.logFields
-      },
-      request.logMessage
-    );
-    ordersTotal.inc({ status: to });
   }
 }
 

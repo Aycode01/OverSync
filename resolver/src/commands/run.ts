@@ -45,10 +45,6 @@ export async function runCommand(opts: RunOptions = {}): Promise<void> {
     log.warn({ reason: networkAgreement.detail }, "Could not verify coordinator network agreement");
   }
 
-  // Fail fast if the configured registries disagree with the deployed
-  // contracts' registry pointers.
-  await checkDeploymentAddresses(cfg);
-
   // Run preflight check in warning mode
   const preflightResults = await checkPreflight();
   for (const r of preflightResults) {

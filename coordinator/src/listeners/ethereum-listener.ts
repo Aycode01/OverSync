@@ -34,6 +34,7 @@ export class EthereumListener {
     this.orders = orders;
     this.events = events;
     this.log = log.child({ component: "EthereumListener" });
+    this.applier = new OrderEventApplier(orders, this.log, "ethereum-listener");
     this.client = createPublicClient({
       chain: cfg.ethereum.chainId === 1 ? mainnet : sepolia,
       transport: http(cfg.ethereum.rpcUrl)
@@ -76,10 +77,20 @@ export class EthereumListener {
         onLogs: (logs) => {
           void (async () => {
             for (const log of logs) {
-              if (log.blockNumber != null) {
-                listenerLastBlock.set({ chain: "ethereum" }, Number(log.blockNumber));
+              if (log.blockNumber == null || log.transactionHash == null) continue;
+              try {
+                await this.handle(Number(log.blockNumber), {
+                  kind: "lock",
+                  chain: "ethereum",
+                  txHash: log.transactionHash,
+                  blockNumber: Number(log.blockNumber),
+                  orderId: log.args.orderId?.toString() ?? null,
+                  hashlock: log.args.hashlock ?? null,
+                  timelock: log.args.timelock != null ? Number(log.args.timelock) : null
+                });
+              } catch (err) {
+                this.log.warn({ err, hashlock: log.args.hashlock }, "could not record src lock");
               }
-              await this.handleCreated(log);
             }
           })();
         }
@@ -91,13 +102,23 @@ export class EthereumListener {
         address,
         event: ORDER_CLAIMED,
         onLogs: (logs) => {
-          for (const log of logs) {
-            if (log.blockNumber != null) {
-              listenerLastBlock.set({ chain: "ethereum" }, Number(log.blockNumber));
+          void (async () => {
+            for (const log of logs) {
+              if (log.blockNumber == null || log.transactionHash == null) continue;
+              try {
+                await this.handle(Number(log.blockNumber), {
+                  kind: "claim",
+                  chain: "ethereum",
+                  txHash: log.transactionHash,
+                  blockNumber: Number(log.blockNumber),
+                  orderId: log.args.orderId?.toString() ?? null,
+                  preimage: log.args.preimage ?? null
+                });
+              } catch (err) {
+                this.log.warn({ err, orderId: log.args.orderId?.toString() }, "could not record claim");
+              }
             }
-            this.log.info({ orderId: log.args.orderId!.toString() }, "ETH order claimed");
-            void this.applySettlement(toSettlement(log, "claimed"));
-          }
+          })();
         }
       })
     );
@@ -107,13 +128,22 @@ export class EthereumListener {
         address,
         event: ORDER_REFUNDED,
         onLogs: (logs) => {
-          for (const log of logs) {
-            if (log.blockNumber != null) {
-              listenerLastBlock.set({ chain: "ethereum" }, Number(log.blockNumber));
+          void (async () => {
+            for (const log of logs) {
+              if (log.blockNumber == null || log.transactionHash == null) continue;
+              try {
+                await this.handle(Number(log.blockNumber), {
+                  kind: "refund",
+                  chain: "ethereum",
+                  txHash: log.transactionHash,
+                  blockNumber: Number(log.blockNumber),
+                  orderId: log.args.orderId?.toString() ?? null
+                });
+              } catch (err) {
+                this.log.warn({ err, orderId: log.args.orderId?.toString() }, "could not record refund");
+              }
             }
-            this.log.info({ orderId: log.args.orderId!.toString() }, "ETH order refunded");
-            void this.applySettlement(toSettlement(log, "refunded"));
-          }
+          })();
         }
       })
     );
